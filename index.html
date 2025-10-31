@@ -414,7 +414,7 @@
             // --- LISTENER BARU UNTUK MENU ---
             // Kita asumsikan koleksi menu Anda bernama 'menu'
             if (!unsubscribeMenu) {
-                unsubscribeMenu = onSnapshot(collection(db, 'menuItems'), (snapshot) => {
+                unsubscribeMenu = onSnapshot(collection(db, 'menu'), (snapshot) => {
                     const menuItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderMenuManagement(menuItems);
                 });
