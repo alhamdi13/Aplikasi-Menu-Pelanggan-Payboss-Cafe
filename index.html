@@ -994,7 +994,8 @@
 
         function initializeAppLogic() {
             const loadingOverlay = document.getElementById('loading-overlay');
-            const menuItemsRef = collection(db, 'menuItems');
+            // PERUBAHAN: Mengganti 'menuItems' menjadi 'menu' sesuai database Anda
+            const menuItemsRef = collection(db, 'menu');
 
             // Pantau perubahan data menu (menuItems)
             onSnapshot(menuItemsRef, (snapshot) => {
@@ -1516,3 +1517,4 @@
     </script>
 </body>
 </html>
+
