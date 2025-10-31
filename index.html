@@ -412,7 +412,7 @@
             }
 
             // --- LISTENER BARU UNTUK MENU ---
-            // Kita asumsikan koleksi menu Anda bernama 'menuItems'
+            // Kita asumsikan koleksi menu Anda bernama 'menu'
             if (!unsubscribeMenu) {
                 unsubscribeMenu = onSnapshot(collection(db, 'menuItems'), (snapshot) => {
                     const menuItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -629,7 +629,7 @@
                 const currentStatus = toggleBtn.dataset.currentStatus === 'true';
                 const newStatus = !currentStatus; // Balikkan statusnya
 
-                const itemRef = doc(db, 'menuItems', itemId);
+                const itemRef = doc(db, 'menu', itemId);
                 
                 // Matikan tombol sementara proses
                 toggleBtn.disabled = true;
@@ -763,3 +763,4 @@
     </script>
 </body>
 </html>
+
