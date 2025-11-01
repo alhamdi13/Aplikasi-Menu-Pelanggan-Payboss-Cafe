@@ -558,55 +558,6 @@
                 container.appendChild(div);
             });
         }
-        // --- AKHIR FUNGSI BARU ---
-
-
-        function updateAllDashboards(activeOrders, completedOrders) {
-            const totalSales = completedOrders.reduce((sum, order) => sum + order.total, 0);
-            const updateElementText = (id, text) => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = text;
-            };
-            
-            updateElementText('total-orders', activeOrders.length);
-            updateElementText('pending-orders', activeOrders.filter(o => o.status === 'pending').length);
-            updateElementText('cooking-orders', activeOrders.filter(o => o.status === 'preparing').length);
-            updateElementText('ready-orders', activeOrders.filter(o => o.status === 'ready').length);
-            updateElementText('daily-revenue', `Rp ${totalSales.toLocaleString('id-ID')}`);
-            updateElementText('completed-orders-kitchen', completedOrders.length);
-            updateElementText('manager-total-sales', `Rp ${totalSales.toLocaleString('id-ID')}`);
-            updateElementText('manager-total-orders', completedOrders.length);
-            const avgOrder = completedOrders.length > 0 ? Math.round(totalSales / completedOrders.length) : 0;
-            updateElementText('manager-avg-order', `Rp ${avgOrder.toLocaleString('id-ID')}`);
-            updateBestSelling(completedOrders);
-        }
-        
-        function updateBestSelling(completedOrders) {
-             const container = document.getElementById('best-selling-list');
-             if(!container) return;
-             if (completedOrders.length === 0) {
-                 container.innerHTML = '<p>Belum ada data penjualan hari ini.</p>';
-                 return;
-             }
-             const sales = {};
-             completedOrders.forEach(order => {
-                 order.items.forEach(item => {
-                     // MODIFIKASI: Gunakan nama + varian sebagai kunci unik
-                     const itemName = `${item.name}${item.variant ? ` (${item.variant})` : ''}`;
-                     if (!sales[itemName]) sales[itemName] = { qty: 0, revenue: 0 };
-                     sales[itemName].qty += item.qty;
-                     sales[itemName].revenue += (item.price * item.qty);
-                 });
-             });
-             const sorted = Object.entries(sales).sort(([,a],[,b]) => b.qty - a.qty).slice(0, 3);
-             const medals = ['🥇', '🥈', '🥉'];
-             container.innerHTML = sorted.map(([name, data], i) => `
-                 <div class="order-item">
-                     <div class="order-header"><span class="order-id">${medals[i]} ${name}</span><span class="order-status status-ready">${data.qty} porsi</span></div>
-                     <div class="order-details">Pendapatan (sblm pajak): Rp ${data.revenue.toLocaleString('id-ID')}</div>
-                 </div>
-             `).join('');
-        }
         
         function setupOrderActionListeners() {
             if (document.body.dataset.actionListenerAttached) return;
@@ -640,6 +591,8 @@
                             printReceipt(orderData);
                         } else {
                             // Cek juga di completedOrders, siapa tahu sudah selesai tapi mau dicetak ulang
+                            // PERBAIKAN: Logika ini mungkin tidak akan berjalan karena tombol hilang setelah order selesai.
+                            // Tapi kita biarkan sebagai fallback jika Anda mengubah alur render.
                             const completedOrderRef = doc(db, 'completedOrders', orderId);
                             const completedOrderDoc = await getDoc(completedOrderRef);
                             if (completedOrderDoc.exists()) {
@@ -657,6 +610,19 @@
 
 
         // [--- FUNGSI BARU UNTUK MEMBUAT STRUK DAN MENCETAK ---]
+
+        // [--- PERUBAHAN UNTUK RAWBT ---]
+        // Helper function baru untuk mengubah string UTF-8 ke Base64
+        function toBase64(str) {
+            try {
+                // btoa mengharapkan string biner, jadi kita gunakan trik ini untuk menangani UTF-8
+                return btoa(unescape(encodeURIComponent(str)));
+            } catch (e) {
+                console.error("Base64 encoding failed", e);
+                return null;
+            }
+        }
+
         function printReceipt(order) {
             // Helper function untuk padding teks agar rata kanan/kiri
             // 32 karakter adalah lebar standar untuk kertas thermal 58mm
@@ -709,64 +675,34 @@
             receiptText += "  Terima kasih atas kunjungan\n";
             receiptText += "           Anda!\n\n\n";
 
-            // --- Logika untuk Mencetak ---
-            // Kita buat iframe tersembunyi, isi dengan struk, lalu panggil print
-            const iframe = document.createElement('iframe');
-            iframe.style.position = 'fixed';
-            iframe.style.left = '-9999px'; // Sembunyikan dari layar
-            document.body.appendChild(iframe);
+            // --- Logika untuk Mencetak via RawBT ---
+            // Alih-alih iframe, kita gunakan URL scheme RawBT
+            
+            const base64Data = toBase64(receiptText);
+            
+            if (!base64Data) {
+                showNotification("Gagal mengenkripsi struk untuk dicetak.", true);
+                return;
+            }
 
-            const doc = iframe.contentWindow.document;
-            doc.open();
-            // Kita gunakan tag <pre> agar format teks (spasi, baris baru) terjaga
-            doc.write(`
-                <html>
-                <head>
-                    <title>Cetak Struk</title>
-                    <style>
-                        /* Paksa styling untuk printer thermal */
-                        body { 
-                            font-family: 'monospace'; /* Font yang lebarnya sama */
-                            font-size: 10pt; 
-                            margin: 0; 
-                            padding: 0;
-                            width: 58mm; /* Coba paksakan lebar kertas */
-                        }
-                        pre { 
-                            margin: 0; 
-                            padding: 0; 
-                            font-family: 'monospace'; 
-                            font-size: 10pt;
-                            word-wrap: break-word; /* Jaga-jaga */
-                        }
-                        /* Sembunyikan header/footer default browser saat print */
-                        @page { margin: 0; } 
-                    </style>
-                </head>
-                <body>
-                    <pre>${receiptText}</pre>
-                </body>
-                </html>
-            `);
-            doc.close();
+            // Ini adalah "intent" URL yang akan ditangkap oleh aplikasi RawBT
+            // "data=" adalah untuk data Base64
+            // "!ENCODING!" adalah flag untuk memberitahu RawBT bahwa ini Base64
+            const rawBtUrl = `rawbt:data=!ENCODING!${base64Data}`;
 
-            // Beri waktu 500ms agar iframe selesai render sebelum print
-            setTimeout(() => {
-                try {
-                    iframe.contentWindow.focus(); // Fokus ke iframe
-                    iframe.contentWindow.print(); // Buka dialog cetak
-                } catch (e) {
-                    console.error("Gagal print:", e);
-                    showNotification("Gagal membuka dialog cetak.", true);
-                }
+            // Coba buka di tab baru (atau jendela). 
+            // Di Android, ini akan dicegat oleh RawBT dan memicu cetak.
+            const printWindow = window.open(rawBtUrl, '_blank');
+            
+            if (!printWindow) {
+                // Jika popup diblokir, beri tahu pengguna
+                showNotification("Gagal membuka RawBT. Izinkan popup untuk aplikasi ini.", true);
                 
-                // Bersihkan iframe setelah 2 detik
-                setTimeout(() => {
-                    document.body.removeChild(iframe);
-                }, 2000);
-            }, 500);
+                // Sebagai alternatif, coba redirect halaman utama (meskipun ini kurang ideal)
+                // window.location.href = rawBtUrl;
+            }
         }
-        // [--- AKHIR FUNGSI BARU ---]
+        // [--- AKHIR FUNGSI BARU & PERUBAHAN RAWBT ---]
 
         // --- LISTENER BARU UNTUK TOMBOL TOGGLE MENU ---
         function setupMenuActionListeners() {
@@ -923,3 +859,4 @@
     </script>
 </body>
 </html>
+
