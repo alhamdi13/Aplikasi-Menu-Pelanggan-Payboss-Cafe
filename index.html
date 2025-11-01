@@ -215,6 +215,14 @@
 
         /* --- STYLE BARU UNTUK HALAMAN CETAK --- */
         @media print {
+            /* --- BARU: Paksa body jadi putih saat cetak --- */
+            html, body {
+                background: #fff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            /* --- AKHIR BARU --- */
+
             /* Sembunyikan semua elemen kecuali area cetak */
             body > * {
                 display: none !important;
@@ -230,7 +238,7 @@
                 font-family: 'Courier New', Courier, monospace;
                 padding: 10px;
                 color: #000;
-                background: #fff;
+                background: #fff !important; /* Pastikan background struk putih */
                 font-size: 10pt; /* Ukuran font struk */
             }
             #print-area h2 { 
@@ -942,3 +950,4 @@
     </script>
 </body>
 </html>
+
