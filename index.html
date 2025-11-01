@@ -858,7 +858,7 @@
             printArea.innerHTML = receiptHtml; // Masukkan HTML ke area cetak
 
             // --- MODIFIKASI: Tambahkan delay untuk browser mobile ---
-            // Beri browser (terutama mobile) waktu 100ms untuk me-render HTML
+            // Beri browser (terutama mobile) waktu 300ms untuk me-render HTML
             setTimeout(() => {
                 window.print(); // Panggil dialog cetak browser
                 
@@ -867,7 +867,7 @@
                     printArea.innerHTML = ''; // Kosongkan lagi setelah cetak
                 }, 500); // 0.5 detik setelah print dipanggil
                 
-            }, 100); // 0.1 detik delay sebelum print
+            }, 300); // 0.3 detik delay sebelum print
             // --- AKHIR MODIFIKASI ---
         }
         // --- AKHIR FUNGSI BARU ---
