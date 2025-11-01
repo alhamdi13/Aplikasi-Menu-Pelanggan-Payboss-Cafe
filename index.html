@@ -412,7 +412,7 @@
             }
 
             // --- LISTENER BARU UNTUK MENU ---
-            // Kita asumsikan koleksi menu Anda bernama 'menu'
+            // PERBAIKAN: Mengganti 'menuItems' ke 'menu' agar sesuai dengan database Anda
             if (!unsubscribeMenu) {
                 unsubscribeMenu = onSnapshot(collection(db, 'menu'), (snapshot) => {
                     const menuItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -455,7 +455,10 @@
                 if (order.status === 'pending') buttons = `<button class="action-btn" disabled>Tunggu Konfirmasi</button>`;
                 if (order.status === 'preparing') buttons = `<button class="action-btn success" data-id="${order.id}" data-action="finish">Selesai Masak</button>`;
             }
-            const items = order.items.map(i => `${i.name} x${i.qty}`).join(', ');
+            // MODIFIKASI: Tambahkan logika untuk menampilkan varian jika ada
+            const items = order.items.map(i => 
+                `${i.name}${i.variant ? ` (${i.variant})` : ''} x${i.qty}`
+            ).join(', ');
             const time = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleTimeString('id-ID') : '...';
 
             let detailsHtml;
@@ -570,9 +573,11 @@
             const sales = {};
             completedOrders.forEach(order => {
                 order.items.forEach(item => {
-                    if (!sales[item.name]) sales[item.name] = { qty: 0, revenue: 0 };
-                    sales[item.name].qty += item.qty;
-                    sales[item.name].revenue += (item.price * item.qty);
+                    // MODIFIKASI: Gunakan nama + varian sebagai kunci unik
+                    const itemName = `${item.name}${item.variant ? ` (${item.variant})` : ''}`;
+                    if (!sales[itemName]) sales[itemName] = { qty: 0, revenue: 0 };
+                    sales[itemName].qty += item.qty;
+                    sales[itemName].revenue += (item.price * item.qty);
                 });
             });
             const sorted = Object.entries(sales).sort(([,a],[,b]) => b.qty - a.qty).slice(0, 3);
@@ -629,6 +634,7 @@
                 const currentStatus = toggleBtn.dataset.currentStatus === 'true';
                 const newStatus = !currentStatus; // Balikkan statusnya
 
+                // PERBAIKAN: Mengganti 'menuItems' ke 'menu' agar sesuai dengan database Anda
                 const itemRef = doc(db, 'menu', itemId);
                 
                 // Matikan tombol sementara proses
@@ -728,7 +734,10 @@
                         const formattedTime = date.toLocaleTimeString('id-ID');
                         const customer = `"${order.customer}"`;
                         const table = order.table;
-                        const items = `"${order.items.map(i => `${i.name} x${i.qty}`).join('; ')}"`;
+                        // MODIFIKASI: Tambahkan varian ke dalam laporan CSV
+                        const items = `"${order.items.map(i => 
+                            `${i.name}${i.variant ? ` (${i.variant})` : ''} x${i.qty}`
+                        ).join('; ')}"`;
                         const subtotal = order.subtotal !== undefined ? order.subtotal : "N/A";
                         const tax = order.tax !== undefined ? order.tax : "N/A";
                         const grandTotal = order.total;
@@ -763,4 +772,5 @@
     </script>
 </body>
 </html>
+
 
