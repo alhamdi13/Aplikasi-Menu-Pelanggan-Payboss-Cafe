@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal Staf - Payboss Cafe</title>
+    <!-- --- BARU: Tambahkan library jsPDF dan html2canvas --- -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- --- AKHIR BARU --- -->
     <style>
         body {
             box-sizing: border-box;
@@ -367,8 +371,10 @@
     </div>
 
     <!-- --- AREA BARU UNTUK KONTEN CETAK (DI LUAR APP) --- -->
-    <div id="print-area" class="hidden"></div>
-    <!-- --- AKHIR AREA BARU --- -->
+    <!-- PERUBAHAN: Dihapus class 'hidden' agar html2canvas bisa "melihat"nya,
+         tapi kita beri style manual agar tidak terlihat di layar. -->
+    <div id="print-area" style="position: absolute; left: -9999px; top: -9999px; background: white; color: black;"></div>
+    <!-- --- AKHIR PERUBAHAN --- -->
 
 
     <script type="module">
@@ -696,8 +702,8 @@
                         const orderRef = doc(db, 'orders', orderId);
                         const orderDoc = await getDoc(orderRef);
                         if (orderDoc.exists()) {
-                            // Panggil fungsi baru untuk buat struk & cetak
-                            generateAndPrintReceipt(orderDoc.data());
+                            // --- PERUBAHAN: Panggil fungsi generate PDF baru dan tunggu (await) ---
+                            await generateAndPrintReceipt(orderDoc.data());
                         } else {
                             showNotification('Pesanan tidak ditemukan.', true);
                         }
@@ -705,12 +711,13 @@
                         console.error("Gagal mencetak:", error);
                         showNotification('Gagal mencetak struk.', true);
                     } finally {
+                        // Ini sekarang aman karena menunggu 'await' selesai
                         actionBtn.disabled = false;
                         actionBtn.innerHTML = '🖨️ Cetak';
                     }
                     return; // Hentikan di sini agar tidak menjalankan logika di bawah
                 }
-                // --- AKHIR LOGIKA CETAK ---
+                // --- AKHIR LOGIKA CETAK (MODIFIKASI) ---
 
 
                 // Logika yang sudah ada
@@ -799,9 +806,17 @@
         }
         
         // --- FUNGSI BARU UNTUK MEMBUAT DAN MENCETAK STRUK ---
-        function generateAndPrintReceipt(order) {
+        // --- DIMODIFIKASI TOTAL UNTUK MENGGUNAKAN JSDPF & HTML2CANVAS ---
+        async function generateAndPrintReceipt(order) {
             const printArea = document.getElementById('print-area');
-            if (!printArea) return;
+            // Dapatkan referensi ke library yang sudah kita impor di <head>
+            const { jsPDF } = window.jspdf;
+            const html2canvas = window.html2canvas;
+
+            if (!printArea || !jsPDF || !html2canvas) {
+                showNotification("Gagal memuat library cetak.", true);
+                return Promise.reject("Library not found");
+            }
 
             const time = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : 'N/A';
             
@@ -858,18 +873,46 @@
             
             printArea.innerHTML = receiptHtml; // Masukkan HTML ke area cetak
 
-            // --- MODIFIKASI: Tambahkan delay untuk browser mobile ---
-            // Beri browser (terutama mobile) waktu 3000ms untuk me-render HTML
-            setTimeout(() => {
-                window.print(); // Panggil dialog cetak browser
+            // Opsi untuk html2canvas (scale 3x agar lebih tajam)
+            const options = {
+                scale: 3,
+                useCORS: true,
+                backgroundColor: "#ffffff"
+            };
+
+            // Gunakan return agar "await" di setupOrderActionListeners berfungsi
+            return html2canvas(printArea, options).then(canvas => {
+                // Setelah "difoto", langsung bersihkan
+                printArea.innerHTML = ''; 
                 
-                // Tunda pembersihan area cetak sedikit lebih lama
-                setTimeout(() => {
-                    printArea.innerHTML = ''; // Kosongkan lagi setelah cetak
-                }, 500); // 0.5 detik setelah print dipanggil
+                const imgData = canvas.toDataURL('image/png');
                 
-            }, 3000); // 3 detik delay sebelum print
-            // --- AKHIR MODIFIKASI ---
+                // Atur lebar PDF agar sesuai kertas struk (80mm ~ 302px, 58mm ~ 218px)
+                // Kita gunakan 280px sesuai CSS @media print kita
+                const pdfWidth = 280;
+                // Hitung tinggi PDF berdasarkan rasio gambar
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+                // Buat PDF baru
+                const pdf = new jsPDF({
+                    orientation: 'p', // portrait
+                    unit: 'px', // gunakan pixel
+                    format: [pdfWidth, pdfHeight] // atur ukuran
+                });
+
+                // Tambahkan gambar ke PDF
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                
+                // Buka PDF di tab baru
+                pdf.output('dataurlnewwindow');
+
+            }).catch(err => {
+                // Jika gagal, pastikan tetap bersih
+                printArea.innerHTML = '';
+                console.error("Gagal membuat PDF:", err);
+                showNotification("Gagal membuat PDF struk.", true);
+                throw err; // Lempar error agar ditangkap finally di atas
+            });
         }
         // --- AKHIR FUNGSI BARU ---
 
@@ -962,4 +1005,5 @@
     </script>
 </body>
 </html>
+
 
