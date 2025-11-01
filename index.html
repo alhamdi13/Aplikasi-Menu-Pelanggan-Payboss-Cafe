@@ -332,10 +332,6 @@
         let unsubscribeCompleted = null;
         let unsubscribeMenu = null; // <-- Variabel baru untuk listener menu
         
-        // [--- TAMBAHAN UNTUK AUDIO ---]
-        let audioContext = null; // Variabel global untuk AudioContext
-        // [--- AKHIR TAMBAHAN ---]
-
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 const managerEmails = ['fedrik.christian07@gmail.com'];
@@ -371,12 +367,6 @@
 
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            
-            // [--- TAMBAHAN UNTUK AUDIO ---]
-            // Inisialisasi audio saat login (interaksi pengguna pertama)
-            initAudio();
-            // [--- AKHIR TAMBAHAN ---]
-
             const email = loginForm.email.value;
             const password = loginForm.password.value;
             loginError.classList.add('hidden');
@@ -411,93 +401,15 @@
             // karena tidak kita sembunyikan secara spesifik.
         }
 
-        // [--- TAMBAHAN UNTUK AUDIO ---]
-        // Fungsi untuk menginisialisasi AudioContext setelah interaksi pengguna
-        function initAudio() {
-            if (!audioContext) {
-                try {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    // Resume context jika dalam keadaan suspended
-                    if (audioContext.state === 'suspended') {
-                        audioContext.resume();
-                    }
-                } catch (e) {
-                    console.error("Web Audio API tidak didukung browser ini.", e);
-                }
-            }
-        }
-
-        // Fungsi untuk memainkan suara notifikasi "ding"
-        function playNotificationSound() {
-            if (!audioContext) {
-                console.warn("Audio context belum siap. Pengguna harus berinteraksi dulu.");
-                // Coba inisialisasi lagi, mungkin gagal main kali ini tapi akan siap untuk berikutnya
-                initAudio();
-                if (!audioContext) return; // Keluar jika masih gagal
-            }
-
-            // Resume context untuk jaga-jaga
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
-
-            try {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.type = 'sine'; // Tipe gelombang suara
-                oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // Frekuensi (nada 'A5')
-                
-                gainNode.gain.setValueAtTime(0.5, audioContext.currentTime); // Volume
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.15); // Durasi suara (150ms)
-            } catch (e) {
-                console.error("Gagal memainkan suara notifikasi:", e);
-            }
-        }
-        // [--- AKHIR TAMBAHAN ---]
-
         function initializeAppLogic() {
             let activeOrders = [];
             let completedToday = [];
 
-            // [--- TAMBAHAN UNTUK AUDIO ---]
-            // Pasang listener klik satu kali untuk inisialisasi audio
-            // Ini untuk kasus jika pengguna sudah login (sesi tersimpan)
-            document.body.addEventListener('click', initAudio, { once: true });
-            // [--- AKHIR TAMBAHAN ---]
-
             if (!unsubscribeOrders) {
-                // [--- MODIFIKASI UNTUK AUDIO ---]
-                let isFirstLoad = true; // Flag untuk mencegah notif saat load pertama
-
                 unsubscribeOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
-                    
-                    let newOrderArrived = false;
-                    // Deteksi perubahan spesifik
-                    snapshot.docChanges().forEach(change => {
-                        if (change.type === 'added') {
-                            newOrderArrived = true;
-                        }
-                    });
-
-                    // Mainkan suara HANYA jika ini BUKAN load pertama DAN ada order baru
-                    if (!isFirstLoad && newOrderArrived) {
-                        playNotificationSound();
-                    }
-                    // [--- AKHIR MODIFIKASI ---]
-
                     activeOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     renderStaffOrders(activeOrders);
                     updateAllDashboards(activeOrders, completedToday);
-
-                    // [--- TAMBAHAN UNTUK AUDIO ---]
-                    isFirstLoad = false; // Set flag setelah load pertama selesai
-                    // [--- AKHIR TAMBAHAN ---]
                 });
             }
 
@@ -646,6 +558,55 @@
                 container.appendChild(div);
             });
         }
+        
+        // [--- TAMBAHAN FUNGSI YANG HILANG ---]
+        function updateAllDashboards(activeOrders, completedOrders) {
+            const totalSales = completedOrders.reduce((sum, order) => sum + order.total, 0);
+            const updateElementText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+            
+            updateElementText('total-orders', activeOrders.length);
+            updateElementText('pending-orders', activeOrders.filter(o => o.status === 'pending').length);
+            updateElementText('cooking-orders', activeOrders.filter(o => o.status === 'preparing').length);
+            updateElementText('ready-orders', activeOrders.filter(o => o.status === 'ready').length);
+            updateElementText('daily-revenue', `Rp ${totalSales.toLocaleString('id-ID')}`);
+            updateElementText('completed-orders-kitchen', completedOrders.length);
+            updateElementText('manager-total-sales', `Rp ${totalSales.toLocaleString('id-ID')}`);
+            updateElementText('manager-total-orders', completedOrders.length);
+            const avgOrder = completedOrders.length > 0 ? Math.round(totalSales / completedOrders.length) : 0;
+            updateElementText('manager-avg-order', `Rp ${avgOrder.toLocaleString('id-ID')}`);
+            updateBestSelling(completedOrders);
+        }
+        
+        function updateBestSelling(completedOrders) {
+             const container = document.getElementById('best-selling-list');
+             if(!container) return;
+            if (completedOrders.length === 0) {
+                container.innerHTML = '<p>Belum ada data penjualan hari ini.</p>';
+                return;
+            }
+            const sales = {};
+            completedOrders.forEach(order => {
+                order.items.forEach(item => {
+                    // MODIFIKASI: Gunakan nama + varian sebagai kunci unik
+                    const itemName = `${item.name}${item.variant ? ` (${item.variant})` : ''}`;
+                    if (!sales[itemName]) sales[itemName] = { qty: 0, revenue: 0 };
+                    sales[itemName].qty += item.qty;
+                    sales[itemName].revenue += (item.price * item.qty);
+                });
+            });
+            const sorted = Object.entries(sales).sort(([,a],[,b]) => b.qty - a.qty).slice(0, 3);
+            const medals = ['🥇', '🥈', '🥉'];
+            container.innerHTML = sorted.map(([name, data], i) => `
+                <div class="order-item">
+                    <div class="order-header"><span class="order-id">${medals[i]} ${name}</span><span class="order-status status-ready">${data.qty} porsi</span></div>
+                    <div class="order-details">Pendapatan (sblm pajak): Rp ${data.revenue.toLocaleString('id-ID')}</div>
+                </div>
+            `).join('');
+        }
+        // [--- AKHIR TAMBAHAN ---]
         
         function setupOrderActionListeners() {
             if (document.body.dataset.actionListenerAttached) return;
