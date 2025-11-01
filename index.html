@@ -856,8 +856,19 @@
             `;
             
             printArea.innerHTML = receiptHtml; // Masukkan HTML ke area cetak
-            window.print(); // Panggil dialog cetak browser
-            printArea.innerHTML = ''; // Kosongkan lagi setelah cetak
+
+            // --- MODIFIKASI: Tambahkan delay untuk browser mobile ---
+            // Beri browser (terutama mobile) waktu 100ms untuk me-render HTML
+            setTimeout(() => {
+                window.print(); // Panggil dialog cetak browser
+                
+                // Tunda pembersihan area cetak sedikit lebih lama
+                setTimeout(() => {
+                    printArea.innerHTML = ''; // Kosongkan lagi setelah cetak
+                }, 500); // 0.5 detik setelah print dipanggil
+                
+            }, 100); // 0.1 detik delay sebelum print
+            // --- AKHIR MODIFIKASI ---
         }
         // --- AKHIR FUNGSI BARU ---
 
@@ -950,4 +961,5 @@
     </script>
 </body>
 </html>
+
 
