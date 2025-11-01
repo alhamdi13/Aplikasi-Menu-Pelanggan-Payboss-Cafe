@@ -191,6 +191,15 @@
         }
         /* --- AKHIR STYLE BARU --- */
 
+        /* --- STYLE BARU UNTUK TOMBOL CETAK --- */
+        .action-btn.print-btn {
+            background-color: #007bff; /* Biru */
+        }
+        .action-btn.print-btn:hover {
+            background-color: #0056b3;
+        }
+        /* --- AKHIR STYLE BARU --- */
+
 
         @media (max-width: 768px) {
             .login-container { padding: 25px; }
@@ -203,6 +212,63 @@
             .order-header { flex-direction: column; align-items: flex-start; gap: 10px; }
             .report-controls { flex-direction: column; align-items: stretch; }
         }
+
+        /* --- STYLE BARU UNTUK HALAMAN CETAK --- */
+        @media print {
+            /* Sembunyikan semua elemen kecuali area cetak */
+            body > * {
+                display: none !important;
+            }
+            #print-area, #print-area * {
+                display: block !important;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 280px; /* Lebar umum struk thermal */
+                font-family: 'Courier New', Courier, monospace;
+                padding: 10px;
+                color: #000;
+                background: #fff;
+                font-size: 10pt; /* Ukuran font struk */
+            }
+            #print-area h2 { 
+                font-size: 1.2rem; 
+                text-align: center; 
+                margin: 0 0 10px 0; 
+            }
+            #print-area p { 
+                margin: 2px 0; 
+                font-size: 10pt; 
+            }
+            #print-area hr {
+                border: none;
+                border-top: 1px dashed #000;
+                margin: 5px 0;
+            }
+            #print-area table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin: 10px 0; 
+            }
+            #print-area th, #print-area td {
+                text-align: left;
+                padding: 2px 0;
+                font-size: 10pt;
+                vertical-align: top;
+            }
+            #print-area .col-item { width: 45%; }
+            #print-area .col-qty { width: 10%; }
+            #print-area .col-price { width: 20%; }
+            #print-area .col-total { width: 25%; }
+            
+            #print-area .text-right { text-align: right; }
+            #print-area .total p { font-weight: bold; margin: 4px 0; }
+            #print-area .footer { text-align: center; margin-top: 10px; }
+        }
+        /* --- AKHIR STYLE CETAK --- */
+
     </style>
 </head>
 <body>
@@ -292,6 +358,11 @@
         </div>
     </div>
 
+    <!-- --- AREA BARU UNTUK KONTEN CETAK (DI LUAR APP) --- -->
+    <div id="print-area" class="hidden"></div>
+    <!-- --- AKHIR AREA BARU --- -->
+
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, where, getDocs, getDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -299,13 +370,13 @@
 
         // Konfigurasi Firebase Anda
         const firebaseConfig = {
-         apiKey: "AIzaSyB0nHqdAw_dV9pHcQ_cSnWtNsn4CwwwUNc",
-         authDomain: "payboss-cafe-system.firebaseapp.com",
-         projectId: "payboss-cafe-system",
-         storageBucket: "payboss-cafe-system.appspot.com",
-         messagingSenderId: "570523503793",
-         appId: "1:570523503793:web:0a7ba7ce751eb95a3f6690",
-         measurementId: "G-H1NJ369HE9"
+            apiKey: "AIzaSyB0nHqdAw_dV9pHcQ_cSnWtNsn4CwwwUNc",
+         authDomain: "payboss-cafe-system.firebaseapp.com",
+         projectId: "payboss-cafe-system",
+         storageBucket: "payboss-cafe-system.appspot.com",
+         messagingSenderId: "570523503793",
+         appId: "1:570523503793:web:0a7ba7ce751eb95a3f6690",
+         measurementId: "G-H1NJ369HE9"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -449,8 +520,15 @@
             };
             let buttons = '';
             if (type === 'cashier') {
-                if (order.status === 'pending') buttons = `<button class="action-btn" data-id="${order.id}" data-action="confirm">Konfirmasi</button>`;
-                if (order.status === 'ready') buttons = `<button class="action-btn success" data-id="${order.id}" data-action="complete">Selesaikan</button>`;
+                
+                // --- BARU: Tambahkan Tombol Cetak ---
+                // Tombol cetak selalu ada untuk kasir
+                buttons += `<button class="action-btn print-btn" data-id="${order.id}" data-action="print">🖨️ Cetak</button>`;
+                // --- AKHIR BARU ---
+
+                if (order.status === 'pending') buttons += `<button class="action-btn" data-id="${order.id}" data-action="confirm">Konfirmasi</button>`;
+                if (order.status === 'ready') buttons += `<button class="action-btn success" data-id="${order.id}" data-action="complete">Selesaikan</button>`;
+            
             } else if (type === 'kitchen') {
                 if (order.status === 'pending') buttons = `<button class="action-btn" disabled>Tunggu Konfirmasi</button>`;
                 if (order.status === 'preparing') buttons = `<button class="action-btn success" data-id="${order.id}" data-action="finish">Selesai Masak</button>`;
@@ -600,6 +678,33 @@
 
                 const orderId = actionBtn.dataset.id;
                 const action = actionBtn.dataset.action;
+
+                // --- BARU: LOGIKA UNTUK CETAK ---
+                if (action === 'print') {
+                    actionBtn.disabled = true;
+                    actionBtn.innerHTML = 'Mencetak...';
+                    try {
+                        const orderRef = doc(db, 'orders', orderId);
+                        const orderDoc = await getDoc(orderRef);
+                        if (orderDoc.exists()) {
+                            // Panggil fungsi baru untuk buat struk & cetak
+                            generateAndPrintReceipt(orderDoc.data());
+                        } else {
+                            showNotification('Pesanan tidak ditemukan.', true);
+                        }
+                    } catch (error) {
+                        console.error("Gagal mencetak:", error);
+                        showNotification('Gagal mencetak struk.', true);
+                    } finally {
+                        actionBtn.disabled = false;
+                        actionBtn.innerHTML = '🖨️ Cetak';
+                    }
+                    return; // Hentikan di sini agar tidak menjalankan logika di bawah
+                }
+                // --- AKHIR LOGIKA CETAK ---
+
+
+                // Logika yang sudah ada
                 const orderRef = doc(db, 'orders', orderId);
                 try {
                     if (action === 'confirm') await updateDoc(orderRef, { status: 'preparing' });
@@ -660,7 +765,7 @@
         
         function setupNavigation() {
              if (document.body.dataset.navListenerAttached) return;
-            document.body.dataset.navListenerAttached = 'true';
+             document.body.dataset.navListenerAttached = 'true';
             const navLinks = document.querySelectorAll('.nav-link');
             const pages = document.querySelectorAll('.page');
             navLinks.forEach(link => {
@@ -684,6 +789,71 @@
             setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 500); }, 3000);
         }
         
+        // --- FUNGSI BARU UNTUK MEMBUAT DAN MENCETAK STRUK ---
+        function generateAndPrintReceipt(order) {
+            const printArea = document.getElementById('print-area');
+            if (!printArea) return;
+
+            const time = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : 'N/A';
+            
+            // Header Tabel
+            let itemsHtml = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="col-item">Item</th>
+                            <th class="col-qty">Jml</th>
+                            <th class="col-price text-right">Harga</th>
+                            <th class="col-total text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Isi Tabel (Item Pesanan)
+            order.items.forEach(item => {
+                const itemName = `${item.name}${item.variant ? ` (${item.variant})` : ''}`;
+                const itemPrice = item.price.toLocaleString('id-ID');
+                const itemSubtotal = (item.price * item.qty).toLocaleString('id-ID');
+                itemsHtml += `
+                    <tr>
+                        <td>${itemName}</td>
+                        <td class="text-right">${item.qty}</td>
+                        <td class="text-right">${itemPrice}</td>
+                        <td class="text-right">${itemSubtotal}</td>
+                    </tr>
+                `;
+            });
+
+            itemsHtml += `</tbody></table>`;
+            
+            // Gabungkan semua bagian struk
+            const receiptHtml = `
+                <h2>Payboss Cafe</h2>
+                <p>Waktu: ${time}</p>
+                <p>Kasir: Staf Payboss</p>
+                <p>Nama : ${order.customer}</p>
+                <p>Meja : ${order.table}</p>
+                <hr>
+                ${itemsHtml}
+                <hr>
+                <div class="total">
+                    <p class="text-right">Subtotal: Rp ${order.subtotal.toLocaleString('id-ID')}</p>
+                    <p class="text-right">Pajak (10%): Rp ${order.tax.toLocaleString('id-ID')}</p>
+                    <p class="text-right">Total: Rp ${order.total.toLocaleString('id-ID')}</p>
+                </div>
+                <hr>
+                <p class="footer">Metode Bayar: ${order.paymentMethod}</p>
+                <p class="footer">--- Terima Kasih ---</p>
+            `;
+            
+            printArea.innerHTML = receiptHtml; // Masukkan HTML ke area cetak
+            window.print(); // Panggil dialog cetak browser
+            printArea.innerHTML = ''; // Kosongkan lagi setelah cetak
+        }
+        // --- AKHIR FUNGSI BARU ---
+
+
         function setupReportDownloader() {
             const downloadBtn = document.getElementById('download-report-btn');
             if (!downloadBtn || downloadBtn.dataset.listenerAttached) return;
@@ -772,5 +942,3 @@
     </script>
 </body>
 </html>
-
-
