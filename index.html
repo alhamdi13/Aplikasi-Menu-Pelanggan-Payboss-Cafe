@@ -611,17 +611,8 @@
 
         // [--- FUNGSI BARU UNTUK MEMBUAT STRUK DAN MENCETAK ---]
 
-        // [--- PERUBAHAN UNTUK RAWBT ---]
-        // Helper function baru untuk mengubah string UTF-8 ke Base64
-        function toBase64(str) {
-            try {
-                // btoa mengharapkan string biner, jadi kita gunakan trik ini untuk menangani UTF-8
-                return btoa(unescape(encodeURIComponent(str)));
-            } catch (e) {
-                console.error("Base64 encoding failed", e);
-                return null;
-            }
-        }
+        // [--- PERUBAHAN UNTUK RAWBT V2 ---]
+        // Kita HAPUS fungsi toBase64(str) karena tidak diperlukan lagi.
 
         function printReceipt(order) {
             // Helper function untuk padding teks agar rata kanan/kiri
@@ -675,20 +666,15 @@
             receiptText += "  Terima kasih atas kunjungan\n";
             receiptText += "           Anda!\n\n\n";
 
-            // --- Logika untuk Mencetak via RawBT ---
-            // Alih-alih iframe, kita gunakan URL scheme RawBT
+            // --- Logika untuk Mencetak via RawBT (Metode Teks) ---
             
-            const base64Data = toBase64(receiptText);
-            
-            if (!base64Data) {
-                showNotification("Gagal mengenkripsi struk untuk dicetak.", true);
-                return;
-            }
+            // Kita URI-encode teks struk mentah. 
+            // Ini akan mengubah spasi menjadi %20, baris baru menjadi %0A, dll.
+            const encodedReceiptText = encodeURIComponent(receiptText);
 
             // Ini adalah "intent" URL yang akan ditangkap oleh aplikasi RawBT
-            // "data=" adalah untuk data Base64
-            // "!ENCODING!" adalah flag untuk memberitahu RawBT bahwa ini Base64
-            const rawBtUrl = `rawbt:data=!ENCODING!${base64Data}`;
+            // Kita kirim teks yang sudah di-encode sebagai "path" URL.
+            const rawBtUrl = `rawbt:${encodedReceiptText}`;
 
             // Coba buka di tab baru (atau jendela). 
             // Di Android, ini akan dicegat oleh RawBT dan memicu cetak.
@@ -702,7 +688,7 @@
                 // window.location.href = rawBtUrl;
             }
         }
-        // [--- AKHIR FUNGSI BARU & PERUBAHAN RAWBT ---]
+        // [--- AKHIR FUNGSI BARU & PERUBAHAN RAWBT V2 ---]
 
         // --- LISTENER BARU UNTUK TOMBOL TOGGLE MENU ---
         function setupMenuActionListeners() {
@@ -859,4 +845,5 @@
     </script>
 </body>
 </html>
+
 
