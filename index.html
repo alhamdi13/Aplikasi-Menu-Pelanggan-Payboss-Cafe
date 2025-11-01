@@ -4,10 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal Staf - Payboss Cafe</title>
-    <!-- --- BARU: Tambahkan library jsPDF dan html2canvas --- -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- --- AKHIR BARU --- -->
     <style>
         body {
             box-sizing: border-box;
@@ -132,6 +128,16 @@
         .action-btn:hover { background: #A0522D; }
         .action-btn.success { background: #28a745; }
         .action-btn.success:hover { background: #218838; }
+        
+        /* [--- TAMBAHAN UNTUK CETAK ---] */
+        .action-btn.print {
+            background-color: #007bff;
+        }
+        .action-btn.print:hover {
+            background-color: #0056b3;
+        }
+        /* [--- AKHIR TAMBAHAN ---] */
+
         .notification {
             position: fixed; top: 20px; right: 20px; background: #8B4513; color: white;
             padding: 15px 20px; border-radius: 8px; z-index: 2000; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
@@ -195,15 +201,6 @@
         }
         /* --- AKHIR STYLE BARU --- */
 
-        /* --- STYLE BARU UNTUK TOMBOL CETAK --- */
-        .action-btn.print-btn {
-            background-color: #007bff; /* Biru */
-        }
-        .action-btn.print-btn:hover {
-            background-color: #0056b3;
-        }
-        /* --- AKHIR STYLE BARU --- */
-
 
         @media (max-width: 768px) {
             .login-container { padding: 25px; }
@@ -216,71 +213,6 @@
             .order-header { flex-direction: column; align-items: flex-start; gap: 10px; }
             .report-controls { flex-direction: column; align-items: stretch; }
         }
-
-        /* --- STYLE BARU UNTUK HALAMAN CETAK --- */
-        @media print {
-            /* --- BARU: Paksa body jadi putih saat cetak --- */
-            html, body {
-                background: #fff !important;
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-            /* --- AKHIR BARU --- */
-
-            /* Sembunyikan semua elemen kecuali area cetak */
-            body > * {
-                display: none !important;
-            }
-            #print-area, #print-area * {
-                display: block !important;
-            }
-            #print-area {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 280px; /* Lebar umum struk thermal */
-                font-family: 'Courier New', Courier, monospace;
-                padding: 10px;
-                color: #000;
-                background: #fff !important; /* Pastikan background struk putih */
-                font-size: 10pt; /* Ukuran font struk */
-            }
-            #print-area h2 { 
-                font-size: 1.2rem; 
-                text-align: center; 
-                margin: 0 0 10px 0; 
-            }
-            #print-area p { 
-                margin: 2px 0; 
-                font-size: 10pt; 
-            }
-            #print-area hr {
-                border: none;
-                border-top: 1px dashed #000;
-                margin: 5px 0;
-            }
-            #print-area table { 
-                width: 100%; 
-                border-collapse: collapse; 
-                margin: 10px 0; 
-            }
-            #print-area th, #print-area td {
-                text-align: left;
-                padding: 2px 0;
-                font-size: 10pt;
-                vertical-align: top;
-            }
-            #print-area .col-item { width: 45%; }
-            #print-area .col-qty { width: 10%; }
-            #print-area .col-price { width: 20%; }
-            #print-area .col-total { width: 25%; }
-            
-            #print-area .text-right { text-align: right; }
-            #print-area .total p { font-weight: bold; margin: 4px 0; }
-            #print-area .footer { text-align: center; margin-top: 10px; }
-        }
-        /* --- AKHIR STYLE CETAK --- */
-
     </style>
 </head>
 <body>
@@ -370,13 +302,6 @@
         </div>
     </div>
 
-    <!-- --- AREA BARU UNTUK KONTEN CETAK (DI LUAR APP) --- -->
-    <!-- PERUBAHAN: Dihapus class 'hidden' agar html2canvas bisa "melihat"nya,
-         tapi kita beri style manual agar tidak terlihat di layar. -->
-    <div id="print-area" style="position: absolute; left: -9999px; top: -9999px; background: white; color: black;"></div>
-    <!-- --- AKHIR PERUBAHAN --- -->
-
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, where, getDocs, getDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -384,14 +309,13 @@
 
         // Konfigurasi Firebase Anda
         const firebaseConfig = {
-            apiKey: "AIzaSyB0nHqdAw_dV9pHcQ_cSnWtNsn4CwwwUNc",
-            // --- PERBAIKAN: Menghapus kata "Gunakan" yang menyebabkan SyntaxError ---
-            authDomain: "payboss-cafe-system.firebaseapp.com",
-            projectId: "payboss-cafe-system",
-            storageBucket: "payboss-cafe-system.appspot.com",
-            messagingSenderId: "570523503793",
-            appId: "1:570523503793:web:0a7ba7ce751eb95a3f6690",
-            measurementId: "G-H1NJ369HE9"
+         apiKey: "AIzaSyB0nHqdAw_dV9pHcQ_cSnWtNsn4CwwwUNc",
+         authDomain: "payboss-cafe-system.firebaseapp.com",
+         projectId: "payboss-cafe-system",
+         storageBucket: "payboss-cafe-system.appspot.com",
+         messagingSenderId: "570523503793",
+         appId: "1:570523503793:web:0a7ba7ce751eb95a3f6690",
+         measurementId: "G-H1NJ369HE9"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -535,15 +459,16 @@
             };
             let buttons = '';
             if (type === 'cashier') {
-                
-                // --- BARU: Tambahkan Tombol Cetak ---
-                // Tombol cetak selalu ada untuk kasir
-                buttons += `<button class="action-btn print-btn" data-id="${order.id}" data-action="print">🖨️ Cetak</button>`;
-                // --- AKHIR BARU ---
+                if (order.status === 'pending') {
+                    buttons = `<button class="action-btn" data-id="${order.id}" data-action="confirm">Konfirmasi</button>`;
+                } else if (order.status === 'ready') {
+                    buttons = `<button class="action-btn success" data-id="${order.id}" data-action="complete">Selesaikan</button>`;
+                }
+                // [--- TAMBAHAN UNTUK CETAK ---]
+                // Selalu tambahkan tombol cetak untuk kasir, terlepas dari statusnya
+                buttons += ` <button class="action-btn print" data-id="${order.id}" data-action="print">Cetak</button>`;
+                // [--- AKHIR TAMBAHAN ---]
 
-                if (order.status === 'pending') buttons += `<button class="action-btn" data-id="${order.id}" data-action="confirm">Konfirmasi</button>`;
-                if (order.status === 'ready') buttons += `<button class="action-btn success" data-id="${order.id}" data-action="complete">Selesaikan</button>`;
-            
             } else if (type === 'kitchen') {
                 if (order.status === 'pending') buttons = `<button class="action-btn" disabled>Tunggu Konfirmasi</button>`;
                 if (order.status === 'preparing') buttons = `<button class="action-btn success" data-id="${order.id}" data-action="finish">Selesai Masak</button>`;
@@ -659,28 +584,28 @@
         function updateBestSelling(completedOrders) {
              const container = document.getElementById('best-selling-list');
              if(!container) return;
-            if (completedOrders.length === 0) {
-                container.innerHTML = '<p>Belum ada data penjualan hari ini.</p>';
-                return;
-            }
-            const sales = {};
-            completedOrders.forEach(order => {
-                order.items.forEach(item => {
-                    // MODIFIKASI: Gunakan nama + varian sebagai kunci unik
-                    const itemName = `${item.name}${item.variant ? ` (${item.variant})` : ''}`;
-                    if (!sales[itemName]) sales[itemName] = { qty: 0, revenue: 0 };
-                    sales[itemName].qty += item.qty;
-                    sales[itemName].revenue += (item.price * item.qty);
-                });
-            });
-            const sorted = Object.entries(sales).sort(([,a],[,b]) => b.qty - a.qty).slice(0, 3);
-            const medals = ['🥇', '🥈', '🥉'];
-            container.innerHTML = sorted.map(([name, data], i) => `
-                <div class="order-item">
-                    <div class="order-header"><span class="order-id">${medals[i]} ${name}</span><span class="order-status status-ready">${data.qty} porsi</span></div>
-                    <div class="order-details">Pendapatan (sblm pajak): Rp ${data.revenue.toLocaleString('id-ID')}</div>
-                </div>
-            `).join('');
+             if (completedOrders.length === 0) {
+                 container.innerHTML = '<p>Belum ada data penjualan hari ini.</p>';
+                 return;
+             }
+             const sales = {};
+             completedOrders.forEach(order => {
+                 order.items.forEach(item => {
+                     // MODIFIKASI: Gunakan nama + varian sebagai kunci unik
+                     const itemName = `${item.name}${item.variant ? ` (${item.variant})` : ''}`;
+                     if (!sales[itemName]) sales[itemName] = { qty: 0, revenue: 0 };
+                     sales[itemName].qty += item.qty;
+                     sales[itemName].revenue += (item.price * item.qty);
+                 });
+             });
+             const sorted = Object.entries(sales).sort(([,a],[,b]) => b.qty - a.qty).slice(0, 3);
+             const medals = ['🥇', '🥈', '🥉'];
+             container.innerHTML = sorted.map(([name, data], i) => `
+                 <div class="order-item">
+                     <div class="order-header"><span class="order-id">${medals[i]} ${name}</span><span class="order-status status-ready">${data.qty} porsi</span></div>
+                     <div class="order-details">Pendapatan (sblm pajak): Rp ${data.revenue.toLocaleString('id-ID')}</div>
+                 </div>
+             `).join('');
         }
         
         function setupOrderActionListeners() {
@@ -693,34 +618,6 @@
 
                 const orderId = actionBtn.dataset.id;
                 const action = actionBtn.dataset.action;
-
-                // --- BARU: LOGIKA UNTUK CETAK ---
-                if (action === 'print') {
-                    actionBtn.disabled = true;
-                    actionBtn.innerHTML = 'Mencetak...';
-                    try {
-                        const orderRef = doc(db, 'orders', orderId);
-                        const orderDoc = await getDoc(orderRef);
-                        if (orderDoc.exists()) {
-                            // --- PERUBAHAN: Panggil fungsi generate PDF baru dan tunggu (await) ---
-                            await generateAndPrintReceipt(orderDoc.data());
-                        } else {
-                            showNotification('Pesanan tidak ditemukan.', true);
-                        }
-                    } catch (error) {
-                        console.error("Gagal mencetak:", error);
-                        showNotification('Gagal mencetak struk.', true);
-                    } finally {
-                        // Ini sekarang aman karena menunggu 'await' selesai
-                        actionBtn.disabled = false;
-                        actionBtn.innerHTML = '🖨️ Cetak';
-                    }
-                    return; // Hentikan di sini agar tidak menjalankan logika di bawah
-                }
-                // --- AKHIR LOGIKA CETAK (MODIFIKASI) ---
-
-
-                // Logika yang sudah ada
                 const orderRef = doc(db, 'orders', orderId);
                 try {
                     if (action === 'confirm') await updateDoc(orderRef, { status: 'preparing' });
@@ -733,10 +630,143 @@
                             await deleteDoc(orderRef);
                             showNotification('Pesanan selesai.');
                         }
+                    // [--- TAMBAHAN UNTUK CETAK ---]
+                    } else if (action === 'print') {
+                        // Saat tombol cetak diklik, ambil data terbaru dari pesanan itu
+                        const orderToPrintDoc = await getDoc(orderRef);
+                        if (orderToPrintDoc.exists()) {
+                            const orderData = { id: orderToPrintDoc.id, ...orderToPrintDoc.data() };
+                            // Panggil fungsi cetak baru
+                            printReceipt(orderData);
+                        } else {
+                            // Cek juga di completedOrders, siapa tahu sudah selesai tapi mau dicetak ulang
+                            const completedOrderRef = doc(db, 'completedOrders', orderId);
+                            const completedOrderDoc = await getDoc(completedOrderRef);
+                            if (completedOrderDoc.exists()) {
+                                const orderData = { id: completedOrderDoc.id, ...completedOrderDoc.data() };
+                                printReceipt(orderData);
+                            } else {
+                                showNotification("Data pesanan tidak ditemukan.", true);
+                            }
+                        }
                     }
+                    // [--- AKHIR TAMBAHAN ---]
                 } catch (error) { console.error(error); showNotification('Gagal memproses aksi!', true); }
             });
         }
+
+
+        // [--- FUNGSI BARU UNTUK MEMBUAT STRUK DAN MENCETAK ---]
+        function printReceipt(order) {
+            // Helper function untuk padding teks agar rata kanan/kiri
+            // 32 karakter adalah lebar standar untuk kertas thermal 58mm
+            const receiptWidth = 32; 
+            const pad = (str, len, char = ' ') => String(str).padEnd(len, char);
+            const padLeft = (str, len, char = ' ') => String(str).padStart(len, char);
+            
+            let receiptText = '';
+
+            // --- Header Struk ---
+            receiptText += "   Payboss Cafe\n"; // Dibuat menjorok agar seperti di tengah
+            receiptText += "--------------------------------\n";
+            receiptText += `Meja: ${order.table}\n`;
+            receiptText += `Pelanggan: ${order.customer}\n`;
+            
+            // Tentukan waktu cetak (jika sudah selesai, pakai completedAt, jika belum, pakai createdAt)
+            const orderTime = order.completedAt?.seconds ? order.completedAt.seconds : (order.createdAt?.seconds || Date.now() / 1000);
+            const time = new Date(orderTime * 1000);
+            receiptText += `Waktu: ${time.toLocaleDateString('id-ID')} ${time.toLocaleTimeString('id-ID')}\n`;
+            receiptText += "--------------------------------\n";
+
+            // --- Daftar Item ---
+            order.items.forEach(item => {
+                // Baris 1: Nama Item (bisa 2 baris jika panjang)
+                let itemName = `${item.qty}x ${item.name}${item.variant ? ` (${item.variant})` : ''}`;
+                
+                // Potong nama item jika terlalu panjang
+                if (itemName.length > receiptWidth) {
+                    receiptText += pad(itemName.substring(0, receiptWidth), receiptWidth) + "\n";
+                    receiptText += pad("   " + itemName.substring(receiptWidth), receiptWidth) + "\n";
+                } else {
+                    receiptText += pad(itemName, receiptWidth) + "\n";
+                }
+                
+                // Baris 2: Harga (rata kanan)
+                const itemTotal = item.price * item.qty;
+                receiptText += padLeft(`Rp ${itemTotal.toLocaleString('id-ID')}`, receiptWidth) + "\n";
+            });
+            receiptText += "--------------------------------\n";
+
+            // --- Bagian Total ---
+            // (18 karakter untuk label, 14 untuk nilai)
+            if (order.subtotal !== undefined) {
+                receiptText += pad("Subtotal", 18) + padLeft(`Rp ${order.subtotal.toLocaleString('id-ID')}`, 14) + "\n";
+                receiptText += pad("Pajak (10%)", 18) + padLeft(`Rp ${order.tax.toLocaleString('id-ID')}`, 14) + "\n";
+            }
+            receiptText += pad("GRAND TOTAL", 18) + padLeft(`Rp ${order.total.toLocaleString('id-ID')}`, 14) + "\n";
+            receiptText += "--------------------------------\n";
+            receiptText += "\n";
+            receiptText += "  Terima kasih atas kunjungan\n";
+            receiptText += "           Anda!\n\n\n";
+
+            // --- Logika untuk Mencetak ---
+            // Kita buat iframe tersembunyi, isi dengan struk, lalu panggil print
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed';
+            iframe.style.left = '-9999px'; // Sembunyikan dari layar
+            document.body.appendChild(iframe);
+
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            // Kita gunakan tag <pre> agar format teks (spasi, baris baru) terjaga
+            doc.write(`
+                <html>
+                <head>
+                    <title>Cetak Struk</title>
+                    <style>
+                        /* Paksa styling untuk printer thermal */
+                        body { 
+                            font-family: 'monospace'; /* Font yang lebarnya sama */
+                            font-size: 10pt; 
+                            margin: 0; 
+                            padding: 0;
+                            width: 58mm; /* Coba paksakan lebar kertas */
+                        }
+                        pre { 
+                            margin: 0; 
+                            padding: 0; 
+                            font-family: 'monospace'; 
+                            font-size: 10pt;
+                            word-wrap: break-word; /* Jaga-jaga */
+                        }
+                        /* Sembunyikan header/footer default browser saat print */
+                        @page { margin: 0; } 
+                    </style>
+                </head>
+                <body>
+                    <pre>${receiptText}</pre>
+                </body>
+                </html>
+            `);
+            doc.close();
+
+            // Beri waktu 500ms agar iframe selesai render sebelum print
+            setTimeout(() => {
+                try {
+                    iframe.contentWindow.focus(); // Fokus ke iframe
+                    iframe.contentWindow.print(); // Buka dialog cetak
+                } catch (e) {
+                    console.error("Gagal print:", e);
+                    showNotification("Gagal membuka dialog cetak.", true);
+                }
+                
+                // Bersihkan iframe setelah 2 detik
+                setTimeout(() => {
+                    document.body.removeChild(iframe);
+                }, 2000);
+            }, 500);
+        }
+        // [--- AKHIR FUNGSI BARU ---]
 
         // --- LISTENER BARU UNTUK TOMBOL TOGGLE MENU ---
         function setupMenuActionListeners() {
@@ -782,18 +812,18 @@
         function setupNavigation() {
              if (document.body.dataset.navListenerAttached) return;
              document.body.dataset.navListenerAttached = 'true';
-            const navLinks = document.querySelectorAll('.nav-link');
-            const pages = document.querySelectorAll('.page');
-            navLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const target = this.dataset.page;
-                    navLinks.forEach(l => l.classList.remove('active'));
-                    this.classList.add('active');
-                    pages.forEach(p => p.classList.remove('active'));
-                    document.getElementById(`${target}-page`).classList.add('active');
-                });
-            });
+             const navLinks = document.querySelectorAll('.nav-link');
+             const pages = document.querySelectorAll('.page');
+             navLinks.forEach(link => {
+                 link.addEventListener('click', function(e) {
+                     e.preventDefault();
+                     const target = this.dataset.page;
+                     navLinks.forEach(l => l.classList.remove('active'));
+                     this.classList.add('active');
+                     pages.forEach(p => p.classList.remove('active'));
+                     document.getElementById(`${target}-page`).classList.add('active');
+                 });
+             });
         }
 
         function showNotification(message, isError = false) {
@@ -805,118 +835,6 @@
             setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 500); }, 3000);
         }
         
-        // --- FUNGSI BARU UNTUK MEMBUAT DAN MENCETAK STRUK ---
-        // --- DIMODIFIKASI TOTAL UNTUK MENGGUNAKAN JSDPF & HTML2CANVAS ---
-        async function generateAndPrintReceipt(order) {
-            const printArea = document.getElementById('print-area');
-            // Dapatkan referensi ke library yang sudah kita impor di <head>
-            const { jsPDF } = window.jspdf;
-            const html2canvas = window.html2canvas;
-
-            if (!printArea || !jsPDF || !html2canvas) {
-                showNotification("Gagal memuat library cetak.", true);
-                return Promise.reject("Library not found");
-            }
-
-            const time = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : 'N/A';
-            
-            // Header Tabel
-            let itemsHtml = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="col-item">Item</th>
-                            <th class="col-qty">Jml</th>
-                            <th class="col-price text-right">Harga</th>
-                            <th class="col-total text-right">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            // Isi Tabel (Item Pesanan)
-            order.items.forEach(item => {
-                const itemName = `${item.name}${item.variant ? ` (${item.variant})` : ''}`;
-                const itemPrice = item.price.toLocaleString('id-ID');
-                const itemSubtotal = (item.price * item.qty).toLocaleString('id-ID');
-                itemsHtml += `
-                    <tr>
-                        <td>${itemName}</td>
-                        <td class="text-right">${item.qty}</td>
-                        <td class="text-right">${itemPrice}</td>
-                        <td class="text-right">${itemSubtotal}</td>
-                    </tr>
-                `;
-            });
-
-            itemsHtml += `</tbody></table>`;
-            
-            // Gabungkan semua bagian struk
-            const receiptHtml = `
-                <h2>Payboss Cafe</h2>
-                <p>Waktu: ${time}</p>
-                <p>Kasir: Staf Payboss</p>
-                <p>Nama : ${order.customer}</p>
-                <p>Meja : ${order.table}</p>
-                <hr>
-                ${itemsHtml}
-                <hr>
-                <div class="total">
-                    <p class="text-right">Subtotal: Rp ${order.subtotal.toLocaleString('id-ID')}</p>
-                    <p class="text-right">Pajak (10%): Rp ${order.tax.toLocaleString('id-ID')}</p>
-                    <p class="text-right">Total: Rp ${order.total.toLocaleString('id-ID')}</p>
-                </div>
-                <hr>
-                <p class="footer">Metode Bayar: ${order.paymentMethod}</p>
-                <p class="footer">--- Terima Kasih ---</p>
-            `;
-            
-            printArea.innerHTML = receiptHtml; // Masukkan HTML ke area cetak
-
-            // Opsi untuk html2canvas (scale 3x agar lebih tajam)
-            const options = {
-                scale: 3,
-                useCORS: true,
-                backgroundColor: "#ffffff"
-            };
-
-            // Gunakan return agar "await" di setupOrderActionListeners berfungsi
-            return html2canvas(printArea, options).then(canvas => {
-                // Setelah "difoto", langsung bersihkan
-                printArea.innerHTML = ''; 
-                
-                const imgData = canvas.toDataURL('image/png');
-                
-                // Atur lebar PDF agar sesuai kertas struk (80mm ~ 302px, 58mm ~ 218px)
-                // Kita gunakan 280px sesuai CSS @media print kita
-                const pdfWidth = 280;
-                // Hitung tinggi PDF berdasarkan rasio gambar
-                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-                // Buat PDF baru
-                const pdf = new jsPDF({
-                    orientation: 'p', // portrait
-                    unit: 'px', // gunakan pixel
-                    format: [pdfWidth, pdfHeight] // atur ukuran
-                });
-
-                // Tambahkan gambar ke PDF
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                
-                // Buka PDF di tab baru
-                pdf.output('dataurlnewwindow');
-
-            }).catch(err => {
-                // Jika gagal, pastikan tetap bersih
-                printArea.innerHTML = '';
-                console.error("Gagal membuat PDF:", err);
-                showNotification("Gagal membuat PDF struk.", true);
-                throw err; // Lempar error agar ditangkap finally di atas
-            });
-        }
-        // --- AKHIR FUNGSI BARU ---
-
-
         function setupReportDownloader() {
             const downloadBtn = document.getElementById('download-report-btn');
             if (!downloadBtn || downloadBtn.dataset.listenerAttached) return;
@@ -1005,5 +923,3 @@
     </script>
 </body>
 </html>
-
-
