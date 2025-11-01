@@ -379,12 +379,13 @@
         // Konfigurasi Firebase Anda
         const firebaseConfig = {
             apiKey: "AIzaSyB0nHqdAw_dV9pHcQ_cSnWtNsn4CwwwUNc",
-         authDomain: "payboss-cafe-system.firebaseapp.com",
-         projectId: "payboss-cafe-system",
-         storageBucket: "payboss-cafe-system.appspot.com",
-         messagingSenderId: "570523503793",
-         appId: "1:570523503793:web:0a7ba7ce751eb95a3f6690",
-         measurementId: "G-H1NJ369HE9"
+            // --- PERBAIKAN: Menghapus kata "Gunakan" yang menyebabkan SyntaxError ---
+            authDomain: "payboss-cafe-system.firebaseapp.com",
+            projectId: "payboss-cafe-system",
+            storageBucket: "payboss-cafe-system.appspot.com",
+            messagingSenderId: "570523503793",
+            appId: "1:570523503793:web:0a7ba7ce751eb95a3f6690",
+            measurementId: "G-H1NJ369HE9"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -858,7 +859,7 @@
             printArea.innerHTML = receiptHtml; // Masukkan HTML ke area cetak
 
             // --- MODIFIKASI: Tambahkan delay untuk browser mobile ---
-            // Beri browser (terutama mobile) waktu 300ms untuk me-render HTML
+            // Beri browser (terutama mobile) waktu 3000ms untuk me-render HTML
             setTimeout(() => {
                 window.print(); // Panggil dialog cetak browser
                 
@@ -867,7 +868,7 @@
                     printArea.innerHTML = ''; // Kosongkan lagi setelah cetak
                 }, 500); // 0.5 detik setelah print dipanggil
                 
-            }, 300); // 0.3 detik delay sebelum print
+            }, 3000); // 3 detik delay sebelum print
             // --- AKHIR MODIFIKASI ---
         }
         // --- AKHIR FUNGSI BARU ---
