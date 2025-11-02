@@ -203,6 +203,25 @@
         }
         /* --- AKHIR STYLE BARU --- */
 
+        /* [--- TAMBAHAN UNTUK VOID LOG ---] */
+        .order-item.voided {
+            border-left-color: #dc3545; /* Red border */
+            background-color: #fff6f6; /* Lighter red background */
+        }
+        .void-reason {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #c82333; /* Dark red */
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ddd;
+        }
+        .void-reason small {
+            color: #666;
+            font-weight: normal;
+        }
+        /* [--- AKHIR TAMBAHAN ---] */
+
         /* [--- TAMBAHAN UNTUK MODAL BATAL ---] */
         .modal-overlay {
             position: fixed;
@@ -352,6 +371,15 @@
                     <div class="stat-card"><span class="stat-icon">📈</span><div class="stat-value" id="manager-avg-order">Rp 0</div><div class="stat-label">Rata-rata per Transaksi</div></div>
                 </div>
                 <div class="order-list"><h3>📊 Menu Terlaris Hari Ini</h3><div id="best-selling-list"><p>Belum ada data penjualan hari ini.</p></div></div>
+            
+                <!-- [--- TAMBAHAN UNTUK VOID LOG ---] -->
+                <div class="order-list">
+                    <h3>🚫 Daftar Pesanan Dibatalkan Hari Ini</h3>
+                    <div id="voided-orders-list">
+                        <p>Belum ada pesanan yang dibatalkan hari ini.</p>
+                    </div>
+                </div>
+                <!-- [--- AKHIR TAMBAHAN ---] -->
             </div>
         </div>
     </div>
@@ -414,6 +442,7 @@
         let unsubscribeOrders = null;
         let unsubscribeCompleted = null;
         let unsubscribeMenu = null; // <-- Variabel baru untuk listener menu
+        let unsubscribeVoided = null; // [--- TAMBAHAN BARU ---]
         
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -445,6 +474,7 @@
                 if (unsubscribeOrders) { unsubscribeOrders(); unsubscribeOrders = null; }
                 if (unsubscribeCompleted) { unsubscribeCompleted(); unsubscribeCompleted = null; }
                 if (unsubscribeMenu) { unsubscribeMenu(); unsubscribeMenu = null; } // <-- Hentikan listener menu
+                if (unsubscribeVoided) { unsubscribeVoided(); unsubscribeVoided = null; } // [--- TAMBAHAN BARU ---]
             }
         });
 
@@ -514,6 +544,20 @@
             }
             // --- AKHIR LISTENER BARU ---
 
+            // [--- TAMBAHAN BARU UNTUK VOID LOG ---]
+            if (!unsubscribeVoided) {
+                const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+                const q = query(collection(db, "voidedOrders"), where("voidedAt", ">=", todayStart));
+                
+                unsubscribeVoided = onSnapshot(q, (snapshot) => {
+                    const voidedToday = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    // Sortir berdasarkan yang terbaru
+                    voidedToday.sort((a, b) => (b.voidedAt?.seconds || 0) - (a.voidedAt?.seconds || 0));
+                    renderVoidedOrders(voidedToday); // Panggil fungsi render baru
+                });
+            }
+            // [--- AKHIR TAMBAHAN ---]
+
             setupNavigation();
             setupOrderActionListeners();
             setupMenuActionListeners(); // <-- Panggil fungsi listener baru
@@ -571,15 +615,19 @@
             const time = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleTimeString('id-ID') : '...';
 
             let detailsHtml;
-            if (order.subtotal !== undefined && order.tax !== undefined) {
-                   detailsHtml = `
-                        <strong>Subtotal:</strong> Rp ${order.subtotal.toLocaleString('id-ID')}<br>
-                        <strong>Pajak (10%):</strong> Rp ${order.tax.toLocaleString('id-ID')}<br>
-                        <strong>Grand Total:</strong> Rp ${order.total.toLocaleString('id-ID')} | <strong>Waktu:</strong> ${time}
-                    `;
-            } else {
-                detailsHtml = `<strong>Total:</strong> Rp ${order.total.toLocaleString('id-ID')} | <strong>Waktu:</strong> ${time}`;
-            }
+            // [--- REVISI PAJAK DIHILANGKAN ---]
+            // Kita sekarang selalu hanya menampilkan Total, karena subtotal dan pajak sudah di-nol-kan dari aplikasi pelanggan.
+            // if (order.subtotal !== undefined && order.tax !== undefined) {
+            //        detailsHtml = `
+            //             <strong>Subtotal:</strong> Rp ${order.subtotal.toLocaleString('id-ID')}<br>
+            //             <strong>Pajak (10%):</strong> Rp ${order.tax.toLocaleString('id-ID')}<br>
+            //             <strong>Grand Total:</strong> Rp ${order.total.toLocaleString('id-ID')} | <strong>Waktu:</strong> ${time}
+            //         `;
+            // } else {
+            //     detailsHtml = `<strong>Total:</strong> Rp ${order.total.toLocaleString('id-ID')} | <strong>Waktu:</strong> ${time}`;
+            // }
+            detailsHtml = `<strong>Total:</strong> Rp ${order.total.toLocaleString('id-ID')} | <strong>Waktu:</strong> ${time}`;
+            // [--- AKHIR REVISI ---]
 
             div.innerHTML = `
                 <div class="order-header">
@@ -649,6 +697,48 @@
                 container.appendChild(div);
             });
         }
+        
+        // [--- FUNGSI BARU UNTUK RENDER VOID LOG ---]
+        function renderVoidedOrders(orders) {
+            const container = document.getElementById('voided-orders-list');
+            if (!container) return; // Jangan lakukan apa-apa jika elemen tidak ada
+
+            if (orders.length === 0) {
+                container.innerHTML = '<p>Belum ada pesanan yang dibatalkan hari ini.</p>';
+                return;
+            }
+
+            container.innerHTML = ''; // Kosongkan daftar
+            orders.forEach(order => {
+                const div = document.createElement('div');
+                div.className = 'order-item voided'; // Pakai style .order-item + .voided
+                
+                const items = order.items.map(i => 
+                    `${i.name}${i.variant ? ` (${i.variant})` : ''} x${i.qty}`
+                ).join(', ');
+
+                const voidTime = order.voidedAt?.seconds ? new Date(order.voidedAt.seconds * 1000).toLocaleTimeString('id-ID') : '...';
+                const orderTime = order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleTimeString('id-ID') : '...';
+
+                div.innerHTML = `
+                    <div class="order-header">
+                        <span class="order-id">Meja ${order.table} - ${order.customer}</span>
+                        <span class="order-status status-pending">DIBATALKAN</span>
+                    </div>
+                    <div class="order-details">
+                        <strong>Pesanan Asli:</strong> ${items}<br>
+                        <strong>Total Asli:</strong> Rp ${order.total.toLocaleString('id-ID')}<br>
+                        <strong>Waktu Pesan:</strong> ${orderTime} | <strong>Waktu Batal:</strong> ${voidTime}
+                    </div>
+                    <div class="void-reason">
+                        <strong>Alasan Batal:</strong> ${order.voidReason || 'Tidak ada alasan'}<br>
+                        <small>Dibatalkan oleh: ${order.voidedBy || 'Tidak diketahui'}</small>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+        // [--- AKHIR FUNGSI BARU ---]
         
         // [--- TAMBAHAN FUNGSI YANG HILANG ---]
         function updateAllDashboards(activeOrders, completedOrders) {
@@ -865,12 +955,14 @@
             receiptText += "--------------------------------\n";
 
             // --- Bagian Total ---
+            // [--- REVISI PAJAK DIHILANGKAN ---]
             // (18 karakter untuk label, 14 untuk nilai)
-            if (order.subtotal !== undefined) {
-                receiptText += pad("Subtotal", 18) + padLeft(`Rp ${order.subtotal.toLocaleString('id-ID')}`, 14) + "\n";
-                receiptText += pad("Pajak (10%)", 18) + padLeft(`Rp ${order.tax.toLocaleString('id-ID')}`, 14) + "\n";
-            }
+            // if (order.subtotal !== undefined) {
+            //     receiptText += pad("Subtotal", 18) + padLeft(`Rp ${order.subtotal.toLocaleString('id-ID')}`, 14) + "\n";
+            //     receiptText += pad("Pajak (10%)", 18) + padLeft(`Rp ${order.tax.toLocaleString('id-ID')}`, 14) + "\n";
+            // }
             receiptText += pad("GRAND TOTAL", 18) + padLeft(`Rp ${order.total.toLocaleString('id-ID')}`, 14) + "\n";
+            // [--- AKHIR REVISI ---]
             receiptText += "--------------------------------\n";
             receiptText += "\n";
             receiptText += "  Terima kasih atas kunjungan\n";
@@ -1004,7 +1096,10 @@
                         return;
                     }
                     
-                    const headers = ["ID Pesanan", "Tanggal Selesai", "Waktu Selesai", "Nama Pelanggan", "No. Meja", "Item Dipesan", "Subtotal", "Pajak (10%)", "Grand Total", "Metode Bayar"];
+                    // [--- REVISI PAJAK DIHILANGKAN ---]
+                    const headers = ["ID Pesanan", "Tanggal Selesai", "Waktu Selesai", "Nama Pelanggan", "No. Meja", "Item Dipesan", "Total", "Metode Bayar"];
+                    // const headers = ["ID Pesanan", "Tanggal Selesai", "Waktu Selesai", "Nama Pelanggan", "No. Meja", "Item Dipesan", "Subtotal", "Pajak (10%)", "Grand Total", "Metode Bayar"];
+                    // [--- AKHIR REVISI ---]
                     const csvRows = [headers.join(',')];
                     
                     reportData.sort((a, b) => a.completedAt.seconds - b.completedAt.seconds);
@@ -1021,11 +1116,14 @@
                         const items = `"${order.items.map(i => 
                             `${i.name}${i.variant ? ` (${i.variant})` : ''} x${i.qty}`
                         ).join('; ')}"`;
-                        const subtotal = order.subtotal !== undefined ? order.subtotal : "N/A";
-                        const tax = order.tax !== undefined ? order.tax : "N/A";
+                        // [--- REVISI PAJAK DIHILANGKAN ---]
+                        // const subtotal = order.subtotal !== undefined ? order.subtotal : "N/A";
+                        // const tax = order.tax !== undefined ? order.tax : "N/A";
                         const grandTotal = order.total;
                         const payment = `"${order.paymentMethod}"`;
-                        csvRows.push([orderId, formattedDate, formattedTime, customer, table, items, subtotal, tax, grandTotal, payment].join(','));
+                        // csvRows.push([orderId, formattedDate, formattedTime, customer, table, items, subtotal, tax, grandTotal, payment].join(','));
+                        csvRows.push([orderId, formattedDate, formattedTime, customer, table, items, grandTotal, payment].join(','));
+                        // [--- AKHIR REVISI ---]
                     }
 
                     const csvContent = csvRows.join('\n');
@@ -1055,6 +1153,8 @@
     </script>
 </body>
 </html>
+
+
 
 
 
