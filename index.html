@@ -617,15 +617,6 @@
             let detailsHtml;
             // [--- REVISI PAJAK DIHILANGKAN ---]
             // Kita sekarang selalu hanya menampilkan Total, karena subtotal dan pajak sudah di-nol-kan dari aplikasi pelanggan.
-            // if (order.subtotal !== undefined && order.tax !== undefined) {
-            //        detailsHtml = `
-            //             <strong>Subtotal:</strong> Rp ${order.subtotal.toLocaleString('id-ID')}<br>
-            //             <strong>Pajak (10%):</strong> Rp ${order.tax.toLocaleString('id-ID')}<br>
-            //             <strong>Grand Total:</strong> Rp ${order.total.toLocaleString('id-ID')} | <strong>Waktu:</strong> ${time}
-            //         `;
-            // } else {
-            //     detailsHtml = `<strong>Total:</strong> Rp ${order.total.toLocaleString('id-ID')} | <strong>Waktu:</strong> ${time}`;
-            // }
             detailsHtml = `<strong>Total:</strong> Rp ${order.total.toLocaleString('id-ID')} | <strong>Waktu:</strong> ${time}`;
             // [--- AKHIR REVISI ---]
 
@@ -914,6 +905,7 @@
         // [--- PERUBAHAN UNTUK RAWBT V2 ---]
         // Kita HAPUS fungsi toBase64(str) karena tidak diperlukan lagi.
 
+        // [--- FUNGSI DIPERBARUI ---]
         function printReceipt(order) {
             // Helper function untuk padding teks agar rata kanan/kiri
             // 32 karakter adalah lebar standar untuk kertas thermal 58mm
@@ -923,9 +915,21 @@
             
             let receiptText = '';
 
-            // --- Header Struk ---
-            receiptText += "   Payboss Cafe\n"; // Dibuat menjorok agar seperti di tengah
+            // --- Header Struk (BARU) ---
+            // (14 char) -> (32-14)/2 = 9 spasi
+            receiptText += "         PAY BOSS CAFE\n";
+            // (30 char) -> (32-30)/2 = 1 spasi
+            receiptText += " Jl. Tanjung Permai No 2 RT 07\n";
+            // (23 char) -> (32-23)/2 = 4.5 -> 4 spasi
+            receiptText += "    Pembataan.Murung Pudak.\n";
+            // (8 char) -> (32-8)/2 = 12 spasi
+            receiptText += "            Tabalong\n";
+            // (24 char) -> (32-24)/2 = 4 spasi
+            receiptText += "    Reservasi: 0811-5194-456\n";
             receiptText += "--------------------------------\n";
+            
+            // --- Info Pesanan (Lama) ---
+            // Ini kita biarkan rata kiri
             receiptText += `Meja: ${order.table}\n`;
             receiptText += `Pelanggan: ${order.customer}\n`;
             
@@ -935,7 +939,7 @@
             receiptText += `Waktu: ${time.toLocaleDateString('id-ID')} ${time.toLocaleTimeString('id-ID')}\n`;
             receiptText += "--------------------------------\n";
 
-            // --- Daftar Item ---
+            // --- Daftar Item (Lama) ---
             order.items.forEach(item => {
                 // Baris 1: Nama Item (bisa 2 baris jika panjang)
                 let itemName = `${item.qty}x ${item.name}${item.variant ? ` (${item.variant})` : ''}`;
@@ -943,7 +947,7 @@
                 // Potong nama item jika terlalu panjang
                 if (itemName.length > receiptWidth) {
                     receiptText += pad(itemName.substring(0, receiptWidth), receiptWidth) + "\n";
-                    receiptText += pad("   " + itemName.substring(receiptWidth), receiptWidth) + "\n";
+                    receiptText += pad("  " + itemName.substring(receiptWidth), receiptWidth) + "\n";
                 } else {
                     receiptText += pad(itemName, receiptWidth) + "\n";
                 }
@@ -954,21 +958,24 @@
             });
             receiptText += "--------------------------------\n";
 
-            // --- Bagian Total ---
-            // [--- REVISI PAJAK DIHILANGKAN ---]
+            // --- Bagian Total (Lama, sudah benar) ---
             // (18 karakter untuk label, 14 untuk nilai)
-            // if (order.subtotal !== undefined) {
-            //     receiptText += pad("Subtotal", 18) + padLeft(`Rp ${order.subtotal.toLocaleString('id-ID')}`, 14) + "\n";
-            //     receiptText += pad("Pajak (10%)", 18) + padLeft(`Rp ${order.tax.toLocaleString('id-ID')}`, 14) + "\n";
-            // }
             receiptText += pad("GRAND TOTAL", 18) + padLeft(`Rp ${order.total.toLocaleString('id-ID')}`, 14) + "\n";
-            // [--- AKHIR REVISI ---]
             receiptText += "--------------------------------\n";
-            receiptText += "\n";
-            receiptText += "  Terima kasih atas kunjungan\n";
-            receiptText += "           Anda!\n\n\n";
 
-            // --- Logika untuk Mencetak via RawBT (Metode Teks) ---
+            // --- Footer Struk (BARU) ---
+            // (20 char) -> (32-20)/2 = 6 spasi
+            receiptText += "      Wifi : Pay Boss Cafe\n";
+            // (21 char) -> (32-21)/2 = 5.5 -> 5 spasi
+            receiptText += "     Pasword : P4yB0sSC4F3\n";
+            receiptText += "--------------------------------\n";
+            // (31 char) -> (32-31)/2 = 0.5 -> 0 spasi, sudah pas
+            receiptText += "Terimakasih atas kunjungan anda.\n";
+            // (24 char) -> (32-24)/2 = 4 spasi
+            receiptText += "    Instagram: Payboss.cafe\n";
+            receiptText += "\n\n\n"; // Feed paper
+
+            // --- Logika untuk Mencetak via RawBT (Lama, tidak diubah) ---
             
             // Kita URI-encode teks struk mentah. 
             // Ini akan mengubah spasi menjadi %20, baris baru menjadi %0A, dll.
@@ -1098,7 +1105,6 @@
                     
                     // [--- REVISI PAJAK DIHILANGKAN ---]
                     const headers = ["ID Pesanan", "Tanggal Selesai", "Waktu Selesai", "Nama Pelanggan", "No. Meja", "Item Dipesan", "Total", "Metode Bayar"];
-                    // const headers = ["ID Pesanan", "Tanggal Selesai", "Waktu Selesai", "Nama Pelanggan", "No. Meja", "Item Dipesan", "Subtotal", "Pajak (10%)", "Grand Total", "Metode Bayar"];
                     // [--- AKHIR REVISI ---]
                     const csvRows = [headers.join(',')];
                     
@@ -1117,11 +1123,8 @@
                             `${i.name}${i.variant ? ` (${i.variant})` : ''} x${i.qty}`
                         ).join('; ')}"`;
                         // [--- REVISI PAJAK DIHILANGKAN ---]
-                        // const subtotal = order.subtotal !== undefined ? order.subtotal : "N/A";
-                        // const tax = order.tax !== undefined ? order.tax : "N/A";
                         const grandTotal = order.total;
                         const payment = `"${order.paymentMethod}"`;
-                        // csvRows.push([orderId, formattedDate, formattedTime, customer, table, items, subtotal, tax, grandTotal, payment].join(','));
                         csvRows.push([orderId, formattedDate, formattedTime, customer, table, items, grandTotal, payment].join(','));
                         // [--- AKHIR REVISI ---]
                     }
@@ -1153,9 +1156,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
