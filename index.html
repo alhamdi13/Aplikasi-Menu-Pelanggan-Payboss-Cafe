@@ -129,12 +129,18 @@
         .action-btn.success { background: #28a745; }
         .action-btn.success:hover { background: #218838; }
         
-        /* [--- TAMBAHAN UNTUK CETAK ---] */
+        /* [--- TAMBAHAN UNTUK CETAK & BATAL ---] */
         .action-btn.print {
             background-color: #007bff;
         }
         .action-btn.print:hover {
             background-color: #0056b3;
+        }
+        .action-btn.danger {
+            background-color: #dc3545;
+        }
+        .action-btn.danger:hover {
+            background-color: #c82333;
         }
         /* [--- AKHIR TAMBAHAN ---] */
 
@@ -192,14 +198,62 @@
             opacity: 0.8;
         }
         .menu-category-header {
-            margin-top: 25px;
-            margin-bottom: 10px;
-            font-size: 1.3rem;
-            color: #3E2723;
             border-bottom: 2px solid #D2B48C;
             padding-bottom: 5px;
         }
         /* --- AKHIR STYLE BARU --- */
+
+        /* [--- TAMBAHAN UNTUK MODAL BATAL ---] */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 450px;
+        }
+        .modal-content h2 {
+            margin-top: 0;
+            color: #3E2723;
+        }
+        .modal-content .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .modal-content label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .modal-content textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 1rem;
+            resize: vertical;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        /* [--- AKHIR TAMBAHAN MODAL ---] */
 
 
         @media (max-width: 768px) {
@@ -302,6 +356,26 @@
         </div>
     </div>
 
+    <!-- [--- TAMBAHAN UNTUK MODAL PEMBATALAN ---] -->
+    <div id="void-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Batalkan Pesanan</h2>
+            <p>Anda akan membatalkan pesanan. Harap masukkan alasan yang jelas untuk manajer.</p>
+            <form id="void-form">
+                <div class="form-group">
+                    <label for="void-reason">Alasan Pembatalan</label>
+                    <textarea id="void-reason" rows="3" required></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="cancel-void-btn" class="action-btn">Tutup</button>
+                    <button type="submit" id="confirm-void-btn" class="action-btn danger">Konfirmasi Batal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- [--- AKHIR TAMBAHAN MODAL ---] -->
+
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, where, getDocs, getDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -309,13 +383,13 @@
 
         // Konfigurasi Firebase Anda
         const firebaseConfig = {
-          apiKey: "AIzaSyB0nHqdAw_dV9pHcQ_cSnWtNsn4CwwwUNc",
-          authDomain: "payboss-cafe-system.firebaseapp.com",
-          projectId: "payboss-cafe-system",
-          storageBucket: "payboss-cafe-system.appspot.com",
-          messagingSenderId: "570523503793",
-          appId: "1:570523503793:web:0a7ba7ce751eb95a3f6690",
-          measurementId: "G-H1NJ369HE9"
+         apiKey: "AIzaSyB0nHqdAw_dV9pHcQ_cSnWtNsn4CwwwUNc",
+         authDomain: "payboss-cafe-system.firebaseapp.com",
+         projectId: "payboss-cafe-system",
+         storageBucket: "payboss-cafe-system.appspot.com",
+         messagingSenderId: "570523503793",
+         appId: "1:570523503793:web:0a7ba7ce751eb95a3f6690",
+         measurementId: "G-H1NJ369HE9"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -327,6 +401,15 @@
         const loginForm = document.getElementById('login-form');
         const loginError = document.getElementById('login-error');
         const logoutBtn = document.getElementById('logout-btn');
+
+        // [--- TAMBAHAN MODAL ---]
+        const voidModal = document.getElementById('void-modal');
+        const voidForm = document.getElementById('void-form');
+        const voidReasonInput = document.getElementById('void-reason');
+        const cancelVoidBtn = document.getElementById('cancel-void-btn');
+        const confirmVoidBtn = document.getElementById('confirm-void-btn');
+        let orderToVoidId = null; // Store the ID of the order to be voided
+        // [--- AKHIR TAMBAHAN ---]
 
         let unsubscribeOrders = null;
         let unsubscribeCompleted = null;
@@ -435,6 +518,7 @@
             setupOrderActionListeners();
             setupMenuActionListeners(); // <-- Panggil fungsi listener baru
             setupReportDownloader();
+            setupVoidModalListeners(); // [--- TAMBAHAN BARU ---]
         }
 
         function renderStaffOrders(orders) {
@@ -461,9 +545,16 @@
             if (type === 'cashier') {
                 if (order.status === 'pending') {
                     buttons = `<button class="action-btn" data-id="${order.id}" data-action="confirm">Konfirmasi</button>`;
+                    // [--- TAMBAHAN TOMBOL BATAL ---]
+                    buttons += ` <button class="action-btn danger" data-id="${order.id}" data-action="void-request">Batalkan</button>`;
                 } else if (order.status === 'ready') {
                     buttons = `<button class="action-btn success" data-id="${order.id}" data-action="complete">Selesaikan</button>`;
+                } else if (order.status === 'preparing') {
+                    // [--- TAMBAHAN TOMBOL BATAL ---]
+                    // Juga izinkan batal saat sedang dimasak (jika pelanggan tiba2 batal)
+                    buttons += ` <button class="action-btn danger" data-id="${order.id}" data-action="void-request">Batalkan</button>`;
                 }
+                
                 // [--- TAMBAHAN UNTUK CETAK ---]
                 // Selalu tambahkan tombol cetak untuk kasir, terlepas dari statusnya
                 buttons += ` <button class="action-btn print" data-id="${order.id}" data-action="print">Cetak</button>`;
@@ -481,7 +572,7 @@
 
             let detailsHtml;
             if (order.subtotal !== undefined && order.tax !== undefined) {
-                    detailsHtml = `
+                   detailsHtml = `
                         <strong>Subtotal:</strong> Rp ${order.subtotal.toLocaleString('id-ID')}<br>
                         <strong>Pajak (10%):</strong> Rp ${order.tax.toLocaleString('id-ID')}<br>
                         <strong>Grand Total:</strong> Rp ${order.total.toLocaleString('id-ID')} | <strong>Waktu:</strong> ${time}
@@ -581,8 +672,8 @@
         }
         
         function updateBestSelling(completedOrders) {
-              const container = document.getElementById('best-selling-list');
-              if(!container) return;
+             const container = document.getElementById('best-selling-list');
+             if(!container) return;
             if (completedOrders.length === 0) {
                 container.innerHTML = '<p>Belum ada data penjualan hari ini.</p>';
                 return;
@@ -630,6 +721,16 @@
                             await deleteDoc(orderRef);
                             showNotification('Pesanan selesai.');
                         }
+                    // [--- TAMBAHAN LOGIKA UNTUK MODAL BATAL ---]
+                    } else if (action === 'void-request') {
+                        // Tampilkan modal dan simpan ID pesanan
+                        orderToVoidId = orderId;
+                        voidReasonInput.value = ''; // Kosongkan alasan
+                        confirmVoidBtn.disabled = true; // Matikan tombol submit
+                        voidModal.classList.remove('hidden');
+                        voidReasonInput.focus();
+                    // [--- AKHIR TAMBAHAN MODAL ---]
+
                     // [--- TAMBAHAN UNTUK CETAK ---]
                     } else if (action === 'print') {
                         // Saat tombol cetak diklik, ambil data terbaru dari pesanan itu
@@ -640,6 +741,8 @@
                             printReceipt(orderData);
                         } else {
                             // Cek juga di completedOrders, siapa tahu sudah selesai tapi mau dicetak ulang
+                            // PERBAIKAN: Logika ini mungkin tidak akan berjalan karena tombol hilang setelah order selesai.
+                            // Tapi kita biarkan sebagai fallback jika Anda mengubah alur render.
                             const completedOrderRef = doc(db, 'completedOrders', orderId);
                             const completedOrderDoc = await getDoc(completedOrderRef);
                             if (completedOrderDoc.exists()) {
@@ -656,7 +759,70 @@
         }
 
 
-        // [--- FUNGSI BARU UNTUK MEMBUAT STRUK DAN MENCETAK (DENGAN HEADER/FOOTER BARU) ---]
+        // [--- FUNGSI BARU UNTUK MODAL PEMBATALAN ---]
+        function setupVoidModalListeners() {
+            // Aktifkan tombol submit HANYA jika ada alasan
+            voidReasonInput.addEventListener('input', () => {
+                confirmVoidBtn.disabled = !voidReasonInput.value.trim();
+            });
+
+            // Tombol "Tutup"
+            cancelVoidBtn.addEventListener('click', () => {
+                voidModal.classList.add('hidden');
+                orderToVoidId = null;
+            });
+
+            // Tombol "Konfirmasi Batal" (Submit form)
+            voidForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!orderToVoidId || !voidReasonInput.value.trim()) return;
+
+                const reason = voidReasonInput.value.trim();
+                const cashierEmail = auth.currentUser ? auth.currentUser.email : 'unknown@staff';
+                const orderRef = doc(db, 'orders', orderToVoidId);
+
+                confirmVoidBtn.disabled = true;
+                confirmVoidBtn.textContent = 'Memproses...';
+
+                try {
+                    const orderDoc = await getDoc(orderRef);
+                    if (orderDoc.exists()) {
+                        const orderData = orderDoc.data();
+                        
+                        // 1. Simpan ke koleksi 'voidedOrders' (log untuk manajer)
+                        await addDoc(collection(db, 'voidedOrders'), {
+                            ...orderData,
+                            voidedAt: serverTimestamp(),
+                            voidedBy: cashierEmail,
+                            voidReason: reason,
+                            originalOrderId: orderToVoidId
+                        });
+
+                        // 2. Hapus dari koleksi 'orders' (menghilangkan dari antrian)
+                        await deleteDoc(orderRef);
+
+                        showNotification('Pesanan berhasil dibatalkan.');
+                        voidModal.classList.add('hidden');
+                        orderToVoidId = null;
+                    } else {
+                        showNotification('Pesanan tidak lagi ditemukan.', true);
+                    }
+                } catch (error) {
+                    console.error("Error voiding order: ", error);
+                    showNotification('Gagal membatalkan pesanan.', true);
+                } finally {
+                    confirmVoidBtn.disabled = false;
+                    confirmVoidBtn.textContent = 'Konfirmasi Batal';
+                }
+            });
+        }
+        // [--- AKHIR FUNGSI BARU ---]
+
+
+        // [--- FUNGSI BARU UNTUK MEMBUAT STRUK DAN MENCETAK ---]
+
+        // [--- PERUBAHAN UNTUK RAWBT V2 ---]
+        // Kita HAPUS fungsi toBase64(str) karena tidak diperlukan lagi.
 
         function printReceipt(order) {
             // Helper function untuk padding teks agar rata kanan/kiri
@@ -667,11 +833,8 @@
             
             let receiptText = '';
 
-            // --- Header Struk BARU ---
-            receiptText += "         PAY BOSS CAFE\n"; // Dibuat menjorok agar seperti di tengah
-            receiptText += "Jl. Tanjung Permai No 2 RT 07\n";
-            receiptText += " Pembataan.Murung Pudak.Tabalong\n";
-            receiptText += "  Kontak Person : 0811-5194-456\n";
+            // --- Header Struk ---
+            receiptText += "   Payboss Cafe\n"; // Dibuat menjorok agar seperti di tengah
             receiptText += "--------------------------------\n";
             receiptText += `Meja: ${order.table}\n`;
             receiptText += `Pelanggan: ${order.customer}\n`;
@@ -690,7 +853,7 @@
                 // Potong nama item jika terlalu panjang
                 if (itemName.length > receiptWidth) {
                     receiptText += pad(itemName.substring(0, receiptWidth), receiptWidth) + "\n";
-                    receiptText += pad("    " + itemName.substring(receiptWidth), receiptWidth) + "\n";
+                    receiptText += pad("   " + itemName.substring(receiptWidth), receiptWidth) + "\n";
                 } else {
                     receiptText += pad(itemName, receiptWidth) + "\n";
                 }
@@ -709,24 +872,30 @@
             }
             receiptText += pad("GRAND TOTAL", 18) + padLeft(`Rp ${order.total.toLocaleString('id-ID')}`, 14) + "\n";
             receiptText += "--------------------------------\n";
-            
-            // --- Footer Struk BARU ---
-            receiptText += "   Instagram PAY BOSS CAFE\n";
-            receiptText += "   Terimakasih atas kunjungan\n";
-            receiptText += "            anda.\n";
-            receiptText += "--------------------------------\n";
-            receiptText += "Wifi : Pay Boss Cafe\n";
-            receiptText += "Pasword : P4yB0sSC4F3\n";
-            receiptText += "\n\n\n"; // Spasi kosong agar kertas terdorong keluar
+            receiptText += "\n";
+            receiptText += "  Terima kasih atas kunjungan\n";
+            receiptText += "           Anda!\n\n\n";
 
             // --- Logika untuk Mencetak via RawBT (Metode Teks) ---
+            
+            // Kita URI-encode teks struk mentah. 
+            // Ini akan mengubah spasi menjadi %20, baris baru menjadi %0A, dll.
             const encodedReceiptText = encodeURIComponent(receiptText);
+
+            // Ini adalah "intent" URL yang akan ditangkap oleh aplikasi RawBT
+            // Kita kirim teks yang sudah di-encode sebagai "path" URL.
             const rawBtUrl = `rawbt:${encodedReceiptText}`;
 
+            // Coba buka di tab baru (atau jendela). 
+            // Di Android, ini akan dicegat oleh RawBT dan memicu cetak.
             const printWindow = window.open(rawBtUrl, '_blank');
             
             if (!printWindow) {
+                // Jika popup diblokir, beri tahu pengguna
                 showNotification("Gagal membuka RawBT. Izinkan popup untuk aplikasi ini.", true);
+                
+                // Sebagai alternatif, coba redirect halaman utama (meskipun ini kurang ideal)
+                // window.location.href = rawBtUrl;
             }
         }
         // [--- AKHIR FUNGSI BARU & PERUBAHAN RAWBT V2 ---]
@@ -886,6 +1055,7 @@
     </script>
 </body>
 </html>
+
 
 
 
